@@ -2,7 +2,7 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain.memory import ConversationBufferMemory
-from langchain_community.chat_models import ChatOpenAI
+from langchain.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.agents import AgentExecutor, Tool, initialize_agent
 from langchain.agents.types import AgentType
