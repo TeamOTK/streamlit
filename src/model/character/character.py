@@ -11,10 +11,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY_PCR")
+# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY_PCR")
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 class Character:
-    def __init__(self):
+    def __init__(self, uploaded_file):
+        ## 배포용
+        self.uploaded_file = uploaded_file
+        
         self.memory = self.get_memory()
         self.search_chain = self.get_search_chain()
         self.current_memory_chain = self.get_current_memory_chain()
@@ -43,6 +47,9 @@ class Character:
             
             with open(absolute_file_path, "r", encoding="utf8") as json_file:
                 json_data = json_file.read()
+            
+            ## 배포용
+            json_data = self.uploaded_file.read().decode("utf-8")
         
             bot_data = json.loads(json_data)
             title = bot_data['title']

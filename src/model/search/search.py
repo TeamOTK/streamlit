@@ -13,11 +13,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY_HSH")
+# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY_HSH")
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 class Search:
-    def __init__(self):
-        pass
+    def __init__(self, uploaded_file):
+        ## 배포용
+        self.uploaded_file = uploaded_file
         
     def get_agent(self): # GPT-4를 사용하여 대화를 생성하는 코드
         llm = ChatOpenAI(
@@ -46,7 +48,11 @@ class Search:
         absolute_file_path = os.path.abspath(file_path)
         
         loader = self.load_csv(absolute_file_path)
-        docs = self.format_data_for_gpt(loader)
+        ## 로컬
+        # docs = self.format_data_for_gpt(loader)
+        
+        ## 배포용
+        docs = self.format_data_for_gpt(self.uploaded_file)
 
         vectorstore = FAISS.from_texts(docs, embeddings)
 

@@ -1,5 +1,10 @@
 import streamlit as st
 import time
+import os
+import pandas as pd
+
+os.environ["OPENAI_API_KEY"] = st.secrets["openai_key"]
+
 from model.character.character import Character
 from model.search.search import Search
 
@@ -12,13 +17,17 @@ def main():
         character_page()
 
 def search_page():
-    # sidebar()
-        
     st.title("이 웹툰 뭐였지 Demo Page")
+    
+    uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
+    
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
+
+        search = Search(df)
+        
     st.subheader("웹툰을 검색해보세요!")
     st.caption("ex) 주인공이 못생겼다가 예뻐진 웹툰이 뭐지? \n 주인공이 힘순찐인 웹툰 알려줘 \n 수호라는 캐릭터가 등장하는 웹툰 알려줘 \n 무림 웹툰 추천해줘")
-
-    search = Search()
     
     if "search_messages" not in st.session_state:
         st.session_state["search_messages"] = [{"role": "assistant", "content": "안녕하세요. 웹툰에 대한 질문을 해주세요!"}]
@@ -48,13 +57,14 @@ def search_page():
         st.session_state.search_messages.append({"role": "assistant", "content": assistant_response})
         
 def character_page():
-    # sidebar()
     
     st.title("이 웹툰 뭐였지 Demo Page")
-    st.subheader("어글리후드의 엘사 브라이언트와 대화 해보세요!")
-    st.caption("ex) 교회를 어떻게 생각해? \n 너에게 엄마란 무슨 존재야?")
+    uploaded_file = st.file_uploader("Upload a JSON file", type=["json"])
     
-    character = Character()    
+    st.subheader("캐릭터와 대화 해보세요!")
+    st.caption("ex) 교회를 어떻게 생각해?\n너에게 엄마란 무슨 존재야?")
+    
+    character = Character(uploaded_file)    
     
     if "character_messages" not in st.session_state:
         st.session_state["character_messages"] = []
@@ -84,5 +94,4 @@ def character_page():
         st.session_state.character_messages.append({"role": "assistant", "content": assistant_response})
     
 if __name__ == "__main__":
-    # character_page()
     main()
