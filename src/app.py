@@ -10,7 +10,8 @@ from model.search.search import Search
 
 def main():
     selected_page = st.sidebar.selectbox("Select a page", ["웹툰 검색하기", "캐릭터와 대화하기"])
-
+    os.environ["OPENAI_API_KEY"] = st.secrets["openai_key"]
+    
     if selected_page == "웹툰 검색하기":
         search_page()
     elif selected_page == "캐릭터와 대화하기":
@@ -18,6 +19,8 @@ def main():
 
 def search_page():
     st.title("이 웹툰 뭐였지 Demo Page")
+    st.subheader(st.secrets["openai_key"])
+    st.subheader(os.environ["OPENAI_API_KEY"])
     
     uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
     
