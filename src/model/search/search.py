@@ -42,12 +42,12 @@ class Search:
         
         embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
         
-        file_name = "info.csv"
-        file_path = os.path.join("..", "streamlit/src/model/data/webtoon", file_name)
+        # file_name = "info.csv"
+        # file_path = os.path.join("..", "streamlit/src/model/data/webtoon", file_name)
 
-        absolute_file_path = os.path.abspath(file_path)
+        # absolute_file_path = os.path.abspath(file_path)
         
-        loader = self.load_csv(absolute_file_path)
+        # loader = self.load_csv(absolute_file_path)
         ## 로컬
         # docs = self.format_data_for_gpt(loader)
         

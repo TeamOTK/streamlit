@@ -40,13 +40,13 @@ class Character:
         def get_data(input_variables):
             chat = input_variables["chat"]
             
-            file_name = "elsa.json"
-            file_path = os.path.join("..", "streamlit/src/model/data", file_name)
+            # file_name = "elsa.json"
+            # file_path = os.path.join("..", "streamlit/src/model/data", file_name)
 
-            absolute_file_path = os.path.abspath(file_path)
+            # absolute_file_path = os.path.abspath(file_path)
             
-            with open(absolute_file_path, "r", encoding="utf8") as json_file:
-                json_data = json_file.read()
+            # with open(absolute_file_path, "r", encoding="utf8") as json_file:
+            #     json_data = json_file.read()
             
             ## 배포용
             json_data = self.uploaded_file.read().decode("utf-8")
