@@ -23,7 +23,6 @@ def search_page():
     
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
-
         search = Search(df)
         
     st.subheader("웹툰을 검색해보세요!")
@@ -61,10 +60,11 @@ def character_page():
     st.title("이 웹툰 뭐였지 Demo Page")
     uploaded_file = st.file_uploader("Upload a JSON file", type=["json"])
     
+    if uploaded_file is not None:
+        character = Character(uploaded_file)    
+    
     st.subheader("캐릭터와 대화 해보세요!")
     st.caption("ex) 교회를 어떻게 생각해?\n너에게 엄마란 무슨 존재야?")
-    
-    character = Character(uploaded_file)    
     
     if "character_messages" not in st.session_state:
         st.session_state["character_messages"] = []
