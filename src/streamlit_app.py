@@ -1,8 +1,13 @@
 import streamlit as st
+from character.character import Character
+from search.search import Search
 
 def main():
     st.title("이 웹툰 뭐였지 Demo Page")
     st.caption("ex) 예시 input")
+    
+    character = Character()
+    search = Search()
     
     if "messages" not in st.session_state:
         st.session_state["messages"] = [{"role": "assistant", "content": "안녕하세요. 웹툰에 대한 질문을 해주세요!"}]
