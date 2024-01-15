@@ -109,7 +109,7 @@ class Character:
         
         while True:
             received_chat = input("You: ")
-            self.overall_chain.receive_chat(received_chat)
+            self.receive_chat(received_chat)
             print(self.overall_chain.memory.load_memory_variables({})['chat_history'])
 
 if __name__ == "__main__":

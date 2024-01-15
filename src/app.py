@@ -19,8 +19,6 @@ def main():
 
 def search_page():
     st.title("이 웹툰 뭐였지 Demo Page")
-    st.subheader(st.secrets["openai_key"])
-    st.subheader(os.environ["OPENAI_API_KEY"])
     
     uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
     
