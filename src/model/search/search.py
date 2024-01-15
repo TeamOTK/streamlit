@@ -2,13 +2,16 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain.memory import ConversationBufferMemory
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.agents import AgentExecutor, Tool, initialize_agent
 from langchain.agents.types import AgentType
 
 import os
 import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY_HSH")
 
@@ -35,9 +38,14 @@ class Search:
                 -You must answer in Koreans
         """
         
-        embeddings = OpenAIEmbeddings()
+        embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
         
-        loader = self.load_csv("../data/webtoon/info.csv")
+        file_name = "info.csv"
+        file_path = os.path.join("..", "streamlit/src/model/data/webtoon", file_name)
+
+        absolute_file_path = os.path.abspath(file_path)
+        
+        loader = self.load_csv(absolute_file_path)
         docs = self.format_data_for_gpt(loader)
 
         vectorstore = FAISS.from_texts(docs, embeddings)
@@ -78,11 +86,10 @@ class Search:
         return agent
 
 
-    def load_csv(filepath):
+    def load_csv(self, filepath):
         return pd.read_csv(filepath)
 
-
-    def format_data_for_gpt(data):
+    def format_data_for_gpt(self, data):
         formatted_data = []
         for index, row in data.iterrows():
             formatted_data.append(
