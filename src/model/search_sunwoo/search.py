@@ -76,8 +76,7 @@ class Search():
         for url in url_list:
             loader = WebBaseLoader(url)
             docs.extend(loader.load())
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000)
-        docs = text_splitter.split_documents(docs)
+            print(url)
         return docs
         
     def get_text_splitter(self, data):
@@ -95,7 +94,7 @@ class Search():
         )
         return cached_embedder
     
-    def get_embeddings (self, documents ,cached_embedder):
+    def get_embeddings(self, documents ,cached_embedder):
         # client = QdrantClient()
         # collection_name = "MyCollection"
         # qdrant = Qdrant(client, collection_name, embeddings)
@@ -166,7 +165,7 @@ class Search():
     
     def get_parent_document_retriever(self, embeddings):
         # This text splitter is used to create the child documents
-        child_splitter = RecursiveCharacterTextSplitter(chunk_size=1000)
+        child_splitter = RecursiveCharacterTextSplitter(chunk_size=400)
         # The vectorstore to use to index the child chunks
         vectorstore = Chroma(
             collection_name="full_documents", embedding_function=embeddings
@@ -195,7 +194,8 @@ class Search():
         # reordered_docs = reordering.transform_documents(docs)
         result = []
         for doc in docs:
-            result.append(doc.page_content.split("\n")[1])
+            # result.append(doc.page_content.split("\n")[1])
+            result.append(doc.metadata["title"])
         return result
     
     def get_sub_relevant_documents(self, query, vectorstore):
@@ -261,6 +261,17 @@ class Search():
         pipeline_compression_retriever = self.get_pipeline_compression_retriever(retriever, cached_embedder)
         return pipeline_compression_retriever
     
+    def make_retriever_from_url(self, url_list):
+        cached_embedder = self.get_cached_embedder()
+        # db = self.get_embeddings(docs, cached_embedder)
+        # retriever = self.get_retriever(db)
+        retriever = self.get_parent_document_retriever(cached_embedder)
+        docs = self.get_multi_data(url_list)
+        print(docs)
+        retriever.add_documents(docs, ids=None)
+        pipeline_compression_retriever = self.get_pipeline_compression_retriever(retriever, cached_embedder)
+        return pipeline_compression_retriever
+    
     def run(self, query, pipeline_compression_retriever):
         result = self.get_all_relevant_documents(query, pipeline_compression_retriever)
         print(result)
@@ -268,29 +279,29 @@ class Search():
 
 if __name__ == "__main__":
     search = Search()
-    query = "농구 웹툰"
+    query = "고딩들이 농구하는 웹툰 알려줘"
     
     file_name = "namu_new.csv"
     file_path = os.path.join("..", "streamlit/src/model/data/webtoon", file_name)
 
     absolute_file_path = os.path.abspath(file_path)
     # search.run(query, absolute_file_path)
-    
-    # namu_list = [
-    #     "https://namu.wiki/w/%ED%99%94%EC%82%B0%EA%B7%80%ED%99%98(%EC%9B%B9%ED%88%B0)",
-    #     "https://namu.wiki/w/%EC%8B%A0%EC%9D%98%20%ED%83%91",
-    #     "https://namu.wiki/w/%EC%99%B8%EB%AA%A8%EC%A7%80%EC%83%81%EC%A3%BC%EC%9D%98(%EC%9B%B9%ED%88%B0)",
-    #     "https://namu.wiki/w/%EB%82%98%EC%9D%B4%ED%8A%B8%EB%9F%B0",
-    #     "https://namu.wiki/w/%EC%A0%84%EC%A7%80%EC%A0%81%20%EB%8F%85%EC%9E%90%20%EC%8B%9C%EC%A0%90(%EC%9B%B9%ED%88%B0)",
-    #     "https://namu.wiki/w/%EC%9E%AC%ED%98%BC%20%ED%99%A9%ED%9B%84(%EC%9B%B9%ED%88%B0)",
-    #     "https://namu.wiki/w/%EA%B0%80%EB%B9%84%EC%A7%80%ED%83%80%EC%9E%84",
-    #     "https://namu.wiki/w/%EB%82%B4%EC%9D%BC(%EC%9B%B9%ED%88%B0)",
-    #     "https://namu.wiki/w/%EC%82%BC%EA%B5%AD%EC%A7%80%ED%86%A1",
-    #     "https://namu.wiki/w/%EB%86%93%EC%A7%80%EB%A7%88%20%EC%A0%95%EC%8B%A0%EC%A4%84"
-    # ]
+    ## 화산귀환, 신의탑, 외모지상주의, 나이트런, 전지적 독자 시점, 재혼황후, 가비지타임, 내일, 삼국지톡, 놓지마 정신줄
+    namu_list = [
+        # "https://namu.wiki/w/%ED%99%94%EC%82%B0%EA%B7%80%ED%99%98(%EC%9B%B9%ED%88%B0)",
+        "https://namu.wiki/w/%EC%8B%A0%EC%9D%98%20%ED%83%91",
+        # "https://namu.wiki/w/%EC%99%B8%EB%AA%A8%EC%A7%80%EC%83%81%EC%A3%BC%EC%9D%98(%EC%9B%B9%ED%88%B0)",
+        # "https://namu.wiki/w/%EB%82%98%EC%9D%B4%ED%8A%B8%EB%9F%B0",
+        "https://namu.wiki/w/%EC%A0%84%EC%A7%80%EC%A0%81%20%EB%8F%85%EC%9E%90%20%EC%8B%9C%EC%A0%90(%EC%9B%B9%ED%88%B0)",
+        # "https://namu.wiki/w/%EC%9E%AC%ED%98%BC%20%ED%99%A9%ED%9B%84(%EC%9B%B9%ED%88%B0)",
+        "https://namu.wiki/w/%EA%B0%80%EB%B9%84%EC%A7%80%ED%83%80%EC%9E%84",
+        # "https://namu.wiki/w/%EB%82%B4%EC%9D%BC(%EC%9B%B9%ED%88%B0)",
+        # "https://namu.wiki/w/%EC%82%BC%EA%B5%AD%EC%A7%80%ED%86%A1",
+        # "https://namu.wiki/w/%EB%86%93%EC%A7%80%EB%A7%88%20%EC%A0%95%EC%8B%A0%EC%A4%84"
+    ]
     now = time.time()
-    # pipeline_compression_retriever = search.make_retriever(namu_list)
-    pipeline_compression_retriever = search.make_retriever(file_path)
+    pipeline_compression_retriever = search.make_retriever_from_url(namu_list)
+    # pipeline_compression_retriever = search.make_retriever(file_path)
     print(time.time()- now)
     now2 = time.time()
     search.run(query, pipeline_compression_retriever)
