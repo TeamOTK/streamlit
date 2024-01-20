@@ -19,7 +19,11 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.retrievers import ParentDocumentRetriever
 from langchain.storage import InMemoryStore
 from qdrant_client import QdrantClient
+from langchain.embeddings import CacheBackedEmbeddings
+from langchain.storage import LocalFileStore
+from langchain_openai import OpenAIEmbeddings
 
+import time
 from typing import List
 from pydantic import BaseModel, Field
 import os
@@ -28,7 +32,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY_HSH")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY_KSW")
 # OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 # Output parser will split the LLM result into a list of queries
@@ -67,25 +71,36 @@ class Search():
         data = loader.load()
         return data
     
-    def get_multi_data(self, loaders):
+    def get_multi_data(self, url_list):
         docs = []
-        for loader in loaders:
+        for url in url_list:
+            loader = WebBaseLoader(url)
             docs.extend(loader.load())
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000)
         docs = text_splitter.split_documents(docs)
         return docs
         
     def get_text_splitter(self, data):
-        text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+        text_splitter = CharacterTextSplitter(chunk_size=200, chunk_overlap=20)
         documents = text_splitter.split_documents(data)
         return documents
     
-    def get_embeddings (self, documents ,embeddings):
+    def get_cached_embedder(self):
+        underlying_embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
+
+        store = LocalFileStore("./cache/")
+
+        cached_embedder = CacheBackedEmbeddings.from_bytes_store(
+            underlying_embeddings, store, namespace=underlying_embeddings.model
+        )
+        return cached_embedder
+    
+    def get_embeddings (self, documents ,cached_embedder):
         # client = QdrantClient()
         # collection_name = "MyCollection"
         # qdrant = Qdrant(client, collection_name, embeddings)
         # db = await qdrant.from_documents(documents, embeddings, "http://localhost:6333", collection_name)
-        db = FAISS.from_documents(documents, embeddings)
+        db = FAISS.from_documents(documents, cached_embedder)
         return db
     
     def get_embeddings_filter(self):
@@ -102,7 +117,7 @@ class Search():
         retriever = db.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
-                "score_threshold": 0.5,
+                "score_threshold": 0.7,
                 "k": 3
         })
         return retriever
@@ -128,33 +143,33 @@ class Search():
         )
         return compression_retriever
     
-    def get_pipeline_compression_retriever(self, db, embeddings):
+    def get_pipeline_compression_retriever(self, retriever, embeddings):
         splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
         
         redundant_filter = EmbeddingsRedundantFilter(embeddings=embeddings)
-        relevant_filter = EmbeddingsFilter(embeddings=embeddings, similarity_threshold=0.75)
+        relevant_filter = EmbeddingsFilter(embeddings=embeddings, similarity_threshold=0.7)
         pipeline_compressor = DocumentCompressorPipeline(
             transformers=[splitter, redundant_filter, relevant_filter]
         )
         
-        retriever = db.as_retriever(
-            search_type="mmr",
-            search_kwargs={
-                "k": 3
-            },
-        )
+        # retriever = db.as_retriever(
+        #     search_type="mmr",
+        #     search_kwargs={
+        #         "k": 3
+        #     },
+        # )
         
         compression_retriever = ContextualCompressionRetriever(
             base_compressor=pipeline_compressor, base_retriever=retriever
         )
         return compression_retriever
     
-    def get_parent_document_retriever(self):
+    def get_parent_document_retriever(self, embeddings):
         # This text splitter is used to create the child documents
         child_splitter = RecursiveCharacterTextSplitter(chunk_size=1000)
         # The vectorstore to use to index the child chunks
         vectorstore = Chroma(
-            collection_name="full_documents", embedding_function=OpenAIEmbeddings()
+            collection_name="full_documents", embedding_function=embeddings
         )
         # The storage layer for the parent documents
         store = InMemoryStore()
@@ -232,22 +247,51 @@ class Search():
         )
         return chain
         
-    def run(self, query, file_path):
+    def make_retriever(self, file_path):
         data = self.get_data(file_path)
         documents = self.get_text_splitter(data)
-        embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
-        db = self.get_embeddings(documents, embeddings)
-        pipeline_compression_retriever = self.get_pipeline_compression_retriever(db, embeddings)
+        # embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
+        cached_embedder = self.get_cached_embedder()
+        db = self.get_embeddings(documents, cached_embedder)
+        # retriever = self.get_parent_document_retriever(embeddings)
+        # for url in namu_list:
+        #     docs = self.get_web_data(url)
+        #     retriever = self.add_docs_to_retriever(retriever, docs)
+        retriever = self.get_retriever(db)
+        pipeline_compression_retriever = self.get_pipeline_compression_retriever(retriever, cached_embedder)
+        return pipeline_compression_retriever
+    
+    def run(self, query, pipeline_compression_retriever):
         result = self.get_all_relevant_documents(query, pipeline_compression_retriever)
         print(result)
         
 
 if __name__ == "__main__":
     search = Search()
-    query = "매화검존 청명이 회귀하여 화산파를 성장시키는 내용의 웹툰"
+    query = "농구 웹툰"
     
     file_name = "namu_new.csv"
     file_path = os.path.join("..", "streamlit/src/model/data/webtoon", file_name)
 
     absolute_file_path = os.path.abspath(file_path)
-    search.run(query, absolute_file_path)
+    # search.run(query, absolute_file_path)
+    
+    # namu_list = [
+    #     "https://namu.wiki/w/%ED%99%94%EC%82%B0%EA%B7%80%ED%99%98(%EC%9B%B9%ED%88%B0)",
+    #     "https://namu.wiki/w/%EC%8B%A0%EC%9D%98%20%ED%83%91",
+    #     "https://namu.wiki/w/%EC%99%B8%EB%AA%A8%EC%A7%80%EC%83%81%EC%A3%BC%EC%9D%98(%EC%9B%B9%ED%88%B0)",
+    #     "https://namu.wiki/w/%EB%82%98%EC%9D%B4%ED%8A%B8%EB%9F%B0",
+    #     "https://namu.wiki/w/%EC%A0%84%EC%A7%80%EC%A0%81%20%EB%8F%85%EC%9E%90%20%EC%8B%9C%EC%A0%90(%EC%9B%B9%ED%88%B0)",
+    #     "https://namu.wiki/w/%EC%9E%AC%ED%98%BC%20%ED%99%A9%ED%9B%84(%EC%9B%B9%ED%88%B0)",
+    #     "https://namu.wiki/w/%EA%B0%80%EB%B9%84%EC%A7%80%ED%83%80%EC%9E%84",
+    #     "https://namu.wiki/w/%EB%82%B4%EC%9D%BC(%EC%9B%B9%ED%88%B0)",
+    #     "https://namu.wiki/w/%EC%82%BC%EA%B5%AD%EC%A7%80%ED%86%A1",
+    #     "https://namu.wiki/w/%EB%86%93%EC%A7%80%EB%A7%88%20%EC%A0%95%EC%8B%A0%EC%A4%84"
+    # ]
+    now = time.time()
+    # pipeline_compression_retriever = search.make_retriever(namu_list)
+    pipeline_compression_retriever = search.make_retriever(file_path)
+    print(time.time()- now)
+    now2 = time.time()
+    search.run(query, pipeline_compression_retriever)
+    print(time.time()- now2)
