@@ -16,16 +16,44 @@ load_dotenv()
 # OPENAI_API_KEY = os.getenv("OPENAI_API_KEY_HSH")
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
-class Search:
-    def __init__(self, uploaded_file):
-        ## 배포용
+class Embedding:
+    def __init__(self,uploaded_file):
         self.uploaded_file = uploaded_file
+        self.embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
         
-    def get_agent(self): # GPT-4를 사용하여 대화를 생성하는 코드
+    def format_data_for_gpt(self, data):
+        formatted_data = []
+        for index, row in data.iterrows():
+            formatted_data.append(
+                f"title: {row['title']} author: {row['author']} genre: {row['genre']} description: {row['description']}\n")
+        return formatted_data
+    
+    def do_embedding(self):
+        # docs = self.format_data_for_gpt(self.uploaded_file)
+        vectorstore = FAISS.load_local("faiss_index", self.embeddings)
+        # vectorstore = FAISS.from_texts(docs, self.embeddings)
+        # vectorstore.save_local("faiss_index")
+
+        return vectorstore
+    
+    def load_data(self):
+        data = FAISS.load_local("faiss_index", self.embeddings)
+        return data
+
+
+
+
+class Search:
+    def __init__(self, embedding_data):
+        ## 배포용
+        self.embedding_data = embedding_data
+        
+    def get_agent(self): # GPT- 4를 사용하여 대화를 생성하는 코드
         llm = ChatOpenAI(
             model_name="gpt-4-1106-preview",  # Name of the language model
             openai_api_key=OPENAI_API_KEY,
-            temperature=0  # Parameter that controls the randomness of the generated responses
+            temperature=0, # Parameter that controls the randomness of the generated responses
+            streaming = True
         )
         
         system_message = """
@@ -40,8 +68,6 @@ class Search:
                 -You must answer in Koreans
         """
         
-        embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
-        
         # file_name = "info.csv"
         # file_path = os.path.join("..", "streamlit/src/model/data/webtoon", file_name)
 
@@ -52,11 +78,8 @@ class Search:
         # docs = self.format_data_for_gpt(loader)
         
         ## 배포용
-        docs = self.format_data_for_gpt(self.uploaded_file)
 
-        vectorstore = FAISS.from_texts(docs, embeddings)
-
-        retriever = vectorstore.as_retriever()
+        retriever = self.embedding_data.as_retriever()
 
         memory = ConversationBufferMemory(
             memory_key="chat_history", input_key='input', return_messages=True, output_key='output')
@@ -64,7 +87,7 @@ class Search:
         qa = RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",
-            retriever=vectorstore.as_retriever(),
+            retriever=self.embedding_data.as_retriever(),
             verbose=True,
             return_source_documents=True
         )
@@ -90,20 +113,9 @@ class Search:
         )
         
         return agent
-
-
-    def load_csv(self, filepath):
-        return pd.read_csv(filepath)
-
-    def format_data_for_gpt(self, data):
-        formatted_data = []
-        for index, row in data.iterrows():
-            formatted_data.append(
-                f"title: {row['title']} author: {row['author']} genre: {row['genre']} description: {row['description']}\n")
-        return formatted_data
+    
     
     def receive_chat(self, query):
         agent = self.get_agent()
         result = agent(query)
         return result['output']
-
