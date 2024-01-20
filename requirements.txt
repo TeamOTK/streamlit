@@ -7,3 +7,4 @@ tiktoken
 faiss-cpu
 langchain==0.1.0
 python-dotenv
+qdrant-client
