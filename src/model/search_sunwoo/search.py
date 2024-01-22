@@ -1,28 +1,25 @@
 from langchain.chains import LLMChain, StuffDocumentsChain
 from langchain.prompts import PromptTemplate
-from langchain_community.document_transformers import (
-    LongContextReorder,
-)
-from langchain_community.vectorstores import Chroma, Qdrant, FAISS
-from langchain.retrievers.multi_query import MultiQueryRetriever
-from langchain_openai import OpenAI
+from langchain.storage import InMemoryStore, LocalFileStore
+from langchain.embeddings import CacheBackedEmbeddings
+
+from langchain_community.document_transformers import LongContextReorder, EmbeddingsRedundantFilter
+from langchain_community.vectorstores import Chroma,  Qdrant, FAISS
 from langchain_community.document_loaders.csv_loader import CSVLoader
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain.text_splitter import CharacterTextSplitter
+from langchain_community.document_loaders import WebBaseLoader
+
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI, OpenAI
+
+from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain.output_parsers import PydanticOutputParser
+
 from langchain.retrievers.document_compressors import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
-from langchain_community.document_transformers import EmbeddingsRedundantFilter
 from langchain.retrievers.document_compressors import DocumentCompressorPipeline
-from langchain_community.document_loaders import WebBaseLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.retrievers import ParentDocumentRetriever
-from langchain.storage import InMemoryStore
-from qdrant_client import QdrantClient
-from langchain.embeddings import CacheBackedEmbeddings
-from langchain.storage import LocalFileStore
-from langchain_openai import OpenAIEmbeddings
+from langchain.retrievers.multi_query import MultiQueryRetriever
 
+from qdrant_client import QdrantClient
 import time
 from typing import List
 from pydantic import BaseModel, Field
@@ -55,6 +52,7 @@ class Search():
         pass     
     
     def get_data(self, file_path):
+        """ Get data from csv file """
         loader = CSVLoader(
             file_path=file_path,
             csv_args={
@@ -67,11 +65,13 @@ class Search():
         return data
     
     def get_web_data(self, url):
+        """ Get data from web """
         loader = WebBaseLoader(url)
         data = loader.load()
         return data
     
     def get_multi_data(self, url_list):
+        """ Get multi data from web """
         docs = []
         for url in url_list:
             loader = WebBaseLoader(url)
@@ -80,11 +80,13 @@ class Search():
         return docs
         
     def get_text_splitter(self, data):
+        """ Split text """
         text_splitter = CharacterTextSplitter(chunk_size=200, chunk_overlap=20)
         documents = text_splitter.split_documents(data)
         return documents
     
     def get_cached_embedder(self):
+        """ Get cached embedder -> Speed up """""
         underlying_embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
 
         store = LocalFileStore("./cache/")
@@ -112,51 +114,34 @@ class Search():
         return output_parser
     
     def get_retriever(self, db):
-        # Create a retriever
+        """ Create a retriever from the vectorstore """
         retriever = db.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
-                "score_threshold": 0.7,
+                "score_threshold": 0.8,
                 "k": 3
         })
         return retriever
     
     def get_muti_query_retriever(self, db, llm_chain):
-        # Run
+        """ Muti query retriever for use LLM Chain """
         retriever = MultiQueryRetriever(
             retriever=db.as_retriever(), llm_chain=llm_chain, parser_key="lines"
         )  # "lines" is the key (attribute name) of the parsed output
         return retriever
-        
-    def get_compression_retriever(self, db, embeddings_filter):
-        # Create a retriever
-        retriever = db.as_retriever(
-            search_type="similarity_score_threshold",
-            search_kwargs={
-                "score_threshold": 0.5,
-                "k": 3
-            },
-        )
-        compression_retriever = ContextualCompressionRetriever(
-            base_compressor=embeddings_filter, base_retriever=retriever
-        )
-        return compression_retriever
     
     def get_pipeline_compression_retriever(self, retriever, embeddings):
-        splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
         
+        """ Create a pipeline of document transformers and a retriever """
+        
+        ## filters
+        splitter = CharacterTextSplitter(chunk_size=400, chunk_overlap=0)
         redundant_filter = EmbeddingsRedundantFilter(embeddings=embeddings)
         relevant_filter = EmbeddingsFilter(embeddings=embeddings, similarity_threshold=0.7)
+        
         pipeline_compressor = DocumentCompressorPipeline(
             transformers=[splitter, redundant_filter, relevant_filter]
         )
-        
-        # retriever = db.as_retriever(
-        #     search_type="mmr",
-        #     search_kwargs={
-        #         "k": 3
-        #     },
-        # )
         
         compression_retriever = ContextualCompressionRetriever(
             base_compressor=pipeline_compressor, base_retriever=retriever
@@ -164,6 +149,7 @@ class Search():
         return compression_retriever
     
     def get_parent_document_retriever(self, embeddings):
+        """ Create a parent document retriever for chunked documents """
         # This text splitter is used to create the child documents
         child_splitter = RecursiveCharacterTextSplitter(chunk_size=400)
         # The vectorstore to use to index the child chunks
@@ -177,7 +163,7 @@ class Search():
             docstore=store,
             child_splitter=child_splitter,
         )
-        return retriever
+        return retriever, vectorstore
     
     def add_docs_to_retriever(self, retriever, docs):
         retriever.add_documents(docs, ids=None)
@@ -187,11 +173,6 @@ class Search():
         # Get relevant documents ordered by relevance score
         docs = retriever.get_relevant_documents(query)
         
-        # Reorder the documents:
-        # Less relevant document will be at the middle of the list and more
-        # # relevant elements at beginning / end.
-        # reordering = LongContextReorder()
-        # reordered_docs = reordering.transform_documents(docs)
         result = []
         for doc in docs:
             # result.append(doc.page_content.split("\n")[1])
@@ -200,7 +181,7 @@ class Search():
     
     def get_sub_relevant_documents(self, query, vectorstore):
         sub_docs = vectorstore.similarity_search(query)
-        return sub_docs[0].page_content
+        return sub_docs[0].metadata["title"]
 
     # query = "What can you tell me about the Celtics?"
     
@@ -265,17 +246,17 @@ class Search():
         cached_embedder = self.get_cached_embedder()
         # db = self.get_embeddings(docs, cached_embedder)
         # retriever = self.get_retriever(db)
-        retriever = self.get_parent_document_retriever(cached_embedder)
+        retriever, vectorstore = self.get_parent_document_retriever(cached_embedder)
         docs = self.get_multi_data(url_list)
         print(docs)
         retriever.add_documents(docs, ids=None)
         pipeline_compression_retriever = self.get_pipeline_compression_retriever(retriever, cached_embedder)
-        return pipeline_compression_retriever
+        return pipeline_compression_retriever, vectorstore
     
-    def run(self, query, pipeline_compression_retriever):
+    def run(self, query, pipeline_compression_retriever, vectorstore):
         result = self.get_all_relevant_documents(query, pipeline_compression_retriever)
+        # result = self.get_sub_relevant_documents(query, pipeline_compression_retriever, vectorstore)
         print(result)
-        
 
 if __name__ == "__main__":
     search = Search()
@@ -300,9 +281,9 @@ if __name__ == "__main__":
         # "https://namu.wiki/w/%EB%86%93%EC%A7%80%EB%A7%88%20%EC%A0%95%EC%8B%A0%EC%A4%84"
     ]
     now = time.time()
-    pipeline_compression_retriever = search.make_retriever_from_url(namu_list)
+    pipeline_compression_retriever, vectorstore = search.make_retriever_from_url(namu_list)
     # pipeline_compression_retriever = search.make_retriever(file_path)
     print(time.time()- now)
     now2 = time.time()
-    search.run(query, pipeline_compression_retriever)
+    search.run(query, pipeline_compression_retriever, vectorstore)
     print(time.time()- now2)
