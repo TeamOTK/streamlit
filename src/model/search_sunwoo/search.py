@@ -7,6 +7,7 @@ from langchain_community.document_transformers import LongContextReorder, Embedd
 from langchain_community.vectorstores import Chroma,  Qdrant, FAISS
 from langchain_community.document_loaders.csv_loader import CSVLoader
 from langchain_community.document_loaders import WebBaseLoader
+from langchain_community.document_loaders import DataFrameLoader
 
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI, OpenAI
 
@@ -70,13 +71,16 @@ class Search():
         data = loader.load()
         return data
     
-    def get_multi_data(self, url_list):
-        """ Get multi data from web """
+    def get_multi_data(self, datas):
+        """ Get multi data  """
         docs = []
-        for url in url_list:
-            loader = WebBaseLoader(url)
-            docs.extend(loader.load())
-            print(url)
+        for data in datas:
+            # loader = WebBaseLoader(url)
+            # docs.extend(loader.load())
+            # print(url)
+            loader = DataFrameLoader(data, page_content_column="title")
+            for i in loader.lazy_load():
+                docs.append(i)
         return docs
         
     def get_text_splitter(self, data):
@@ -118,7 +122,7 @@ class Search():
         retriever = db.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
-                "score_threshold": 0.8,
+                "score_threshold": 0.6,
                 "k": 3
         })
         return retriever
@@ -137,7 +141,7 @@ class Search():
         ## filters
         splitter = CharacterTextSplitter(chunk_size=400, chunk_overlap=0)
         redundant_filter = EmbeddingsRedundantFilter(embeddings=embeddings)
-        relevant_filter = EmbeddingsFilter(embeddings=embeddings, similarity_threshold=0.7)
+        relevant_filter = EmbeddingsFilter(embeddings=embeddings, similarity_threshold=0.6)
         
         pipeline_compressor = DocumentCompressorPipeline(
             transformers=[splitter, redundant_filter, relevant_filter]
@@ -175,8 +179,8 @@ class Search():
         
         result = []
         for doc in docs:
-            # result.append(doc.page_content.split("\n")[1])
-            result.append(doc.metadata["title"])
+            result.append(doc.page_content)
+            # result.append(doc.metadata["title"])
         return result
     
     def get_sub_relevant_documents(self, query, vectorstore):
@@ -228,9 +232,10 @@ class Search():
         )
         return chain
         
-    def make_retriever(self, file_path):
-        data = self.get_data(file_path)
-        documents = self.get_text_splitter(data)
+    def make_retriever(self, datas):
+        # data = self.get_data(file_path)
+        docs = self.get_multi_data(datas)
+        documents = self.get_text_splitter(docs)
         # embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
         cached_embedder = self.get_cached_embedder()
         db = self.get_embeddings(documents, cached_embedder)
@@ -253,10 +258,11 @@ class Search():
         pipeline_compression_retriever = self.get_pipeline_compression_retriever(retriever, cached_embedder)
         return pipeline_compression_retriever, vectorstore
     
-    def run(self, query, pipeline_compression_retriever, vectorstore):
+    def run(self, query, pipeline_compression_retriever):
         result = self.get_all_relevant_documents(query, pipeline_compression_retriever)
         # result = self.get_sub_relevant_documents(query, pipeline_compression_retriever, vectorstore)
         print(result)
+        return result
 
 if __name__ == "__main__":
     search = Search()
