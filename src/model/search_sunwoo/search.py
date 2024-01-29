@@ -202,8 +202,8 @@ class Search():
         )
         
         llm = ChatOpenAI(
-            model_name="gpt-3.5-turbo-1106", 
-            # model_name="gpt-4",
+            # model_name="gpt-3.5-turbo-1106", 
+            model_name="gpt-4",
             temperature=0, 
             openai_api_key=OPENAI_API_KEY,
             max_tokens=2000
