@@ -76,6 +76,7 @@ def search_page_sunwoo():
     uploaded_files = st.file_uploader("Upload a CSV file", type=["csv"], accept_multiple_files=True)
     
     search_sunwoo = Search_sunwoo()
+    retriever_tool = None
     pipeline_compression_retriever = None
         
     st.subheader("웹툰을 검색해보세요!")
@@ -94,7 +95,7 @@ def search_page_sunwoo():
             datas.append(df)
         if len(datas) > 0:
             # print("TEST!!!!!!!" + str(len(datas)))
-            pipeline_compression_retriever = search_sunwoo.make_retriever(datas)
+            retriever_tool, pipeline_compression_retriever = search_sunwoo.make_retriever(datas)
 
     chat_input_key = "search_chat_input_sunwoo"
     # 사용자 인풋 받기  
@@ -110,7 +111,7 @@ def search_page_sunwoo():
             message_placeholder = st.empty()
             full_response = ""
             # assistant_response = search.receive_chat(prompt)
-            assistant_response = search_sunwoo.run(prompt, pipeline_compression_retriever)
+            assistant_response = search_sunwoo.run(prompt, retriever_tool, pipeline_compression_retriever)
             print(assistant_response)
             
             message_placeholder.markdown(assistant_response)
