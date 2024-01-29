@@ -8,3 +8,4 @@ faiss-cpu
 langchain==0.1.4
 python-dotenv
 chromadb==0.4.22
+pysqlite3-binary
