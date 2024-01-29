@@ -38,18 +38,19 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY_KSW")
 ELASTIC_API_KEY = os.getenv("ELASTIC_API_KEY")
 # OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+
 class Response(BaseModel):
     """Final response to the question being asked"""
 
     answer: str = Field(description="The final answer to respond to the user")
     sources: List[int] = Field(
         description="List of page chunks that contain answer to the question. Only include a page chunk if it contains relevant information"
-    )
+)
 
 class Search():
-    
+        
     def __init__(self):
-        pass     
+        self.Response = Response
     
     def get_data_from_csv(self, file_path):
         """ Get data from csv file """
@@ -209,7 +210,7 @@ class Search():
             max_tokens=2000
         )
         
-        llm_with_tools = llm.bind_functions([retriever_tool, Response])
+        llm_with_tools = llm.bind_functions([retriever_tool, self.Response])
         
         agent = (
             {
