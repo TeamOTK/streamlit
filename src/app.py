@@ -3,6 +3,9 @@ import time
 import os
 import pandas as pd
 
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 os.environ["OPENAI_API_KEY"] = st.secrets["openai_key"]
 
