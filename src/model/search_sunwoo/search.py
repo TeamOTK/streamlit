@@ -181,13 +181,13 @@ class Search():
     def get_agent(self, retriever_tool):
         system_message = """
         You are an AI responding to users searching for webtoons. 
-        Summarize the data three lines of less and answer by changing it to your kind speeking.
+        Summarize the data two lines of less and answer by changing it to your own way.
         
         title: {title}
         data: {data}
         
         You always follow these guidelines:
-            -Limit responses to three lines for clarity and conciseness
+            -Limit responses to two lines for clarity and conciseness
             -You must answer in Koreans
             -You must start with '찾으시는 작품은 {title} 입니다.'
             -You must contains the summary of the webtoon
@@ -202,9 +202,11 @@ class Search():
         )
         
         llm = ChatOpenAI(
-            model_name="gpt-3.5-turbo", 
+            model_name="gpt-3.5-turbo-1106", 
+            # model_name="gpt-4",
             temperature=0, 
-            openai_api_key=OPENAI_API_KEY
+            openai_api_key=OPENAI_API_KEY,
+            max_tokens=2000
         )
         
         llm_with_tools = llm.bind_functions([retriever_tool, Response])
@@ -233,12 +235,6 @@ class Search():
     def get_all_relevant_documents(self, query, retriever):
         # Get relevant documents ordered by relevance score
         docs = retriever.get_relevant_documents(query)
-        
-        # result = []
-        # for doc in docs:
-        #     # result.append(doc.page_content)
-        #     result.append(doc)
-        # return result
         return docs
     
     def get_sub_relevant_documents(self, query, vectorstore):
@@ -253,16 +249,6 @@ class Search():
         
         vectorstore = self.get_embeddings(documents, cached_embedder)
         retriever = self.get_retriever(vectorstore)
-        
-        # elastic_vectorstore = self.get_elastic_vector(cached_embedder, documents)
-        # elastic_docs = elastic_vectorstore.similarity_search(
-        #     query,
-        #     k=5
-        # )
-        # print(elastic_docs)
-        # bm25_retriever = self.get_bm25_retriever(documents)
-        # bm25_docs = bm25_retriever.get_relevant_documents(query)
-        # print(bm25_docs)
         
         pipeline_compression_retriever = self.get_pipeline_compression_retriever(retriever, cached_embedder)
         return pipeline_compression_retriever
@@ -281,7 +267,8 @@ class Search():
                 "data": result[0].page_content,
                 "input": query},
             return_only_outputs=True)
-        return response
+        # print(response['answer'])
+        return response['answer']
 
 if __name__ == "__main__":
     search = Search()
