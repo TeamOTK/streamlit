@@ -7,6 +7,4 @@ tiktoken
 faiss-cpu
 langchain==0.1.0
 python-dotenv
-qdrant-client
-chromadb
-sqlite3 >= 3.35.0
+chromadb==0.3.29
