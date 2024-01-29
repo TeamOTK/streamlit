@@ -7,4 +7,4 @@ tiktoken
 faiss-cpu
 langchain==0.1.0
 python-dotenv
-chromadb==0.3.29
+chromadb==0.4.22
