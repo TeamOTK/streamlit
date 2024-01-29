@@ -112,20 +112,9 @@ def search_page_sunwoo():
             # assistant_response = search.receive_chat(prompt)
             assistant_response = search_sunwoo.run(prompt, pipeline_compression_retriever)
             print(assistant_response)
-            # for chunk in assistant_response.split():
-            content = ""
-            if len(assistant_response) > 0:
-                for chunk in assistant_response:
-                    full_response += chunk + " "
-                    time.sleep(0.05)
-                    message_placeholder.markdown(full_response + "▌")
-                    content = full_response
-                message_placeholder.markdown(full_response)
-            else:
-                content = "검색 결과가 없습니다."
-                message_placeholder.markdown("검색 결과가 없습니다.")
-            # message_placeholder.markdown(assistant_response)
-        st.session_state.search_messages.append({"role": "assistant", "content": content})
+            
+            message_placeholder.markdown(assistant_response)
+        st.session_state.search_messages.append({"role": "assistant", "content": assistant_response})
     
         
 def search_page_sanghoon():
